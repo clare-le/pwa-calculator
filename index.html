@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Dev Calc" />
+  <title>Dev 進位計算機 PWA</title>
+  <link rel="manifest" href="/pwa-calculator/manifest.json" />
+  <link rel="apple-touch-icon" href="/pwa-calculator/icon-192.png" />
+  <style>
+    :root {
+      --bg: #0b1020;
+      --line: #5b6577;
+      --panel: #d4d4d8;
+      --display: #e5e7eb;
+      --label: #5f8fc7;
+      --label-active: #4faa6f;
+      --op: #5f8fc7;
+      --util: #db9451;
+      --text: #111827;
+      --white: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    html, body, .calc, .label, .btn {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
+    }
+    .calc {
+      width: min(560px, 96vw);
+      background: #9ca3af;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      min-height: 92px;
+      border-bottom: 1px solid var(--line);
+    }
+    .row:last-of-type { border-bottom: 1px solid var(--line); }
+    .label {
+      border-right: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: #dbeafe;
+      background: var(--label);
+      font-size: 44px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .label.active { background: var(--label-active); color: var(--white); }
+    .value {
+      background: var(--display);
+      color: #111;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 16px;
+      font-size: 52px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow: hidden;
+      word-break: break-all;
+    }
+    .value.small {
+      justify-content: flex-start;
+      font-size: 24px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      padding: 10px 16px;
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-auto-rows: 90px;
+    }
+    .btn {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 52px;
+      font-weight: 400;
+    }
+    .btn:active { filter: brightness(.96); }
+    .op { background: var(--op); color: #eaf2ff; }
+    .util { background: var(--util); color: #fff7ed; }
+    .danger { background: #c53030; color: #fff5f5; }
+
+    @media (max-width: 480px) {
+      .row { grid-template-columns: 82px 1fr; min-height: 82px; }
+      .label { font-size: 36px; }
+      .value { font-size: 40px; }
+      .value.small { font-size: 18px; }
+      .keys { grid-auto-rows: 76px; }
+      .btn { font-size: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="calc">
+    <section class="row">
+      <div class="label active" data-base="16">HEX</div>
+      <div id="hex" class="value">0</div>
+    </section>
+    <section class="row">
+      <div class="label" data-base="10">DEC</div>
+      <div id="dec" class="value">0</div>
+    </section>
+    <section class="row">
+      <div class="label" data-base="8">OCT</div>
+      <div id="oct" class="value">0</div>
+    </section>
+    <section class="row" style="min-height:120px;">
+      <div class="label" data-base="2">BIN</div>
+      <div id="bin" class="value small">0000</div>
+    </section>
+
+    <section class="keys" id="keys">
+      <button class="btn" data-key="D">D</button>
+      <button class="btn" data-key="E">E</button>
+      <button class="btn" data-key="F">F</button>
+      <button class="btn util" data-act="del">del</button>
+      <button class="btn danger" data-act="ac">AC</button>
+
+      <button class="btn" data-key="A">A</button>
+      <button class="btn" data-key="B">B</button>
+      <button class="btn" data-key="C">C</button>
+      <button class="btn op" data-op="+">＋</button>
+      <button class="btn op" data-op="-">−</button>
+
+      <button class="btn" data-key="7">7</button>
+      <button class="btn" data-key="8">8</button>
+      <button class="btn" data-key="9">9</button>
+      <button class="btn op" data-op="*">×</button>
+      <button class="btn op" data-op="/">÷</button>
+
+      <button class="btn" data-key="4">4</button>
+      <button class="btn" data-key="5">5</button>
+      <button class="btn" data-key="6">6</button>
+      <button class="btn" data-act="sign">±</button>
+      <button class="btn op" data-op="xor">⊗</button>
+
+      <button class="btn" data-key="1">1</button>
+      <button class="btn" data-key="2">2</button>
+      <button class="btn" data-key="3">3</button>
+      <button class="btn" data-key="0">0</button>
+      <button class="btn util" data-act="eq">＝</button>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const DIGITS = '0123456789ABCDEF';
+
+    let activeBase = 16;
+    let currentValue = 0;     // number
+    let buffer = '0';         // in active base
+    let pendingOp = null;
+    let storedValue = null;
+    let overwrite = false;
+
+    const labels = [...document.querySelectorAll('.label')];
+    labels.forEach(el => el.addEventListener('click', () => switchBase(Number(el.dataset.base))));
+
+    function formatInBase(value, base) {
+      const neg = value < 0;
+      const abs = Math.abs(Math.trunc(value));
+      let txt = abs.toString(base).toUpperCase();
+      if (neg) txt = '-' + txt;
+      return txt;
+    }
+
+    function parseInBase(txt, base) {
+      if (!txt || txt === '-') return 0;
+      const sign = txt.startsWith('-') ? -1 : 1;
+      const raw = txt.replace('-', '');
+      const n = parseInt(raw || '0', base);
+      return sign * (Number.isNaN(n) ? 0 : n);
+    }
+
+    function binGrouped(value) {
+      const v = (value >>> 0).toString(2).padStart(32, '0');
+      return v.replace(/(.{4})/g, '$1 ').trim().replace(/(.{39})/g, '$1\n');
+    }
+
+    function setActiveLabel() {
+      labels.forEach(el => el.classList.toggle('active', Number(el.dataset.base) === activeBase));
+    }
+
+    function syncDisplays(valueForDisplay) {
+      $('hex').textContent = formatInBase(valueForDisplay, 16);
+      $('dec').textContent = formatInBase(valueForDisplay, 10);
+      $('oct').textContent = formatInBase(valueForDisplay, 8);
+      $('bin').textContent = binGrouped(valueForDisplay);
+    }
+
+    function refresh() {
+      const displayValue = parseInBase(buffer, activeBase);
+      syncDisplays(displayValue);
+      setActiveLabel();
+      updateKeyAvailability();
+    }
+
+    function switchBase(nextBase) {
+      const val = parseInBase(buffer, activeBase);
+      activeBase = nextBase;
+      buffer = formatInBase(val, activeBase);
+      refresh();
+    }
+
+    function isDigitAllowed(ch) {
+      return DIGITS.indexOf(ch) < activeBase;
+    }
+
+    function inputDigit(ch) {
+      if (!isDigitAllowed(ch)) return;
+      if (overwrite) { buffer = '0'; overwrite = false; }
+      if (buffer === '0') buffer = ch;
+      else if (buffer === '-0') buffer = '-' + ch;
+      else buffer += ch;
+      refresh();
+    }
+
+    function backspace() {
+      if (overwrite) return;
+      if (buffer.length <= 1 || buffer === '-0') buffer = '0';
+      else buffer = buffer.slice(0, -1);
+      if (buffer === '-') buffer = '0';
+      refresh();
+    }
+
+    function clearAll() {
+      currentValue = 0;
+      storedValue = null;
+      pendingOp = null;
+      buffer = '0';
+      overwrite = false;
+      refresh();
+    }
+
+    function toggleSign() {
+      if (buffer === '0') return;
+      buffer = buffer.startsWith('-') ? buffer.slice(1) : '-' + buffer;
+      refresh();
+    }
+
+    function applyOp(a, b, op) {
+      switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b === 0 ? 0 : Math.trunc(a / b);
+        case 'xor': return (a | 0) ^ (b | 0);
+        default: return b;
+      }
+    }
+
+    function setOperator(op) {
+      const n = parseInBase(buffer, activeBase);
+      if (storedValue === null) storedValue = n;
+      else if (pendingOp && !overwrite) storedValue = applyOp(storedValue, n, pendingOp);
+      pendingOp = op;
+      currentValue = storedValue;
+      buffer = formatInBase(currentValue, activeBase);
+      overwrite = true;
+      refresh();
+    }
+
+    function equal() {
+      const n = parseInBase(buffer, activeBase);
+      if (pendingOp && storedValue !== null) {
+        currentValue = applyOp(storedValue, n, pendingOp);
+        buffer = formatInBase(currentValue, activeBase);
+        storedValue = null;
+        pendingOp = null;
+        overwrite = true;
+      } else {
+        currentValue = n;
+      }
+      refresh();
+    }
+
+    function updateKeyAvailability() {
+      document.querySelectorAll('[data-key]').forEach(btn => {
+        const k = btn.dataset.key;
+        btn.style.opacity = isDigitAllowed(k) ? '1' : '.35';
+      });
+    }
+
+    $('keys').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.dataset.key) return inputDigit(btn.dataset.key);
+      if (btn.dataset.op) return setOperator(btn.dataset.op);
+      const act = btn.dataset.act;
+      if (act === 'del') return backspace();
+      if (act === 'ac') return clearAll();
+      if (act === 'sign') return toggleSign();
+      if (act === 'eq') return equal();
+      if (act === 'help') return alert('操作說明：\n1) 點 HEX/DEC/OCT/BIN 可切換輸入進位\n2) 支援 + - × ÷ 整數運算\n3) AC 清除、del 刪除、± 切換正負\n4) BIN 以 32-bit、4-bit 分組顯示');
+    });
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/pwa-calculator/sw.js');
+    refresh();
+  </script>
+</body>
+</html>
